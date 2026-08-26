@@ -1,0 +1,151 @@
+import { useState } from 'react';
+import PageHeader from '../components/PageHeader';
+import CrimeTable from '../components/CrimeTable';
+import { ChevronLeftIcon, ChevronRightIcon } from '../components/Icons';
+
+const initialFilters = { search: '', crimeType: '', district: '', arrest: '', year: '', location: '' };
+
+function SelectField({ label, name, value, onChange, options }) {
+  return (
+    <label className="flex flex-col gap-1 text-sm">
+      <span className="font-medium text-slate-600">{label}</span>
+      <select
+        name={name}
+        value={value}
+        onChange={onChange}
+        className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+      >
+        <option value="">All</option>
+        {options.map((opt) => (
+          <option key={opt} value={opt}>
+            {opt}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function TextField({ label, name, value, onChange, placeholder }) {
+  return (
+    <label className="flex flex-col gap-1 text-sm">
+      <span className="font-medium text-slate-600">{label}</span>
+      <input
+        type="text"
+        name={name}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+      />
+    </label>
+  );
+}
+
+function CrimeRecords() {
+  const [filters, setFilters] = useState(initialFilters);
+  const [records] = useState([]); // will hold GET /api/crimes results
+  const [loading] = useState(false);
+  const [page, setPage] = useState(1);
+  const totalPages = 1; // backend will return real page count once connected
+
+  function handleChange(e) {
+    setFilters((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  }
+
+  function handleApply() {
+    // Integration point: call getCrimes({ ...filters, page }) once backend is live.
+    setPage(1);
+  }
+
+  function handleClear() {
+    setFilters(initialFilters);
+    setPage(1);
+  }
+
+  return (
+    <div>
+      <PageHeader title="Crime Records" description="Search, filter and explore historical crime records." />
+
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 mb-6">
+        <h3 className="text-sm font-semibold text-slate-800 mb-4">Filters</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <TextField
+            label="Search Crime"
+            name="search"
+            value={filters.search}
+            onChange={handleChange}
+            placeholder="e.g. Theft, Assault..."
+          />
+          <SelectField label="Crime Type" name="crimeType" value={filters.crimeType} onChange={handleChange} options={[]} />
+          <SelectField label="District" name="district" value={filters.district} onChange={handleChange} options={[]} />
+          <SelectField label="Arrest Status" name="arrest" value={filters.arrest} onChange={handleChange} options={['Yes', 'No']} />
+          <SelectField label="Year" name="year" value={filters.year} onChange={handleChange} options={[]} />
+          <TextField
+            label="Location"
+            name="location"
+            value={filters.location}
+            onChange={handleChange}
+            placeholder="e.g. Ward, Community Area..."
+          />
+        </div>
+        <div className="flex items-center gap-3 mt-5">
+          <button
+            type="button"
+            onClick={handleApply}
+            className="px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+          >
+            Apply Filters
+          </button>
+          <button
+            type="button"
+            onClick={handleClear}
+            className="px-4 py-2 text-sm font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+          >
+            Clear Filters
+          </button>
+        </div>
+      </div>
+
+      <CrimeTable records={records} loading={loading} />
+
+      <div className="flex items-center justify-between mt-4 text-sm">
+        <p className="text-slate-400">Page {page} of {totalPages}</p>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            disabled={page <= 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            className="h-8 w-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 disabled:opacity-40 hover:bg-slate-50"
+            aria-label="Previous page"
+          >
+            <ChevronLeftIcon className="h-4 w-4" />
+          </button>
+          {[1, 2, 3].map((n) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => setPage(n)}
+              className={`h-8 w-8 flex items-center justify-center rounded-lg text-sm border ${
+                page === n ? 'bg-blue-600 text-white border-blue-600' : 'border-slate-200 text-slate-500 hover:bg-slate-50'
+              }`}
+            >
+              {n}
+            </button>
+          ))}
+          <button
+            type="button"
+            disabled={page >= totalPages}
+            onClick={() => setPage((p) => p + 1)}
+            className="h-8 w-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 disabled:opacity-40 hover:bg-slate-50"
+            aria-label="Next page"
+          >
+            <ChevronRightIcon className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default CrimeRecords;
