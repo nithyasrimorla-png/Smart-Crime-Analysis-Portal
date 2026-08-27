@@ -12,19 +12,19 @@ const navItems = [
 function Sidebar({ isOpen = false, onClose = () => {} }) {
   return (
     <aside
-      className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-slate-300 flex flex-col transform transition-transform duration-200 ease-in-out
+      className={`fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-line flex flex-col transform transition-transform duration-200 ease-in-out
       md:translate-x-0 md:static md:z-auto
       ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
     >
-      <div className="flex items-center justify-between px-5 py-5 border-b border-slate-800">
+      <div className="flex items-center justify-between px-5 py-5 border-b border-line">
         <div>
-          <p className="text-white font-semibold text-sm leading-tight tracking-wide">SMART CRIME</p>
-          <p className="text-slate-400 text-xs leading-tight tracking-wide">ANALYSIS PORTAL</p>
+          <p className="text-charcoal font-semibold text-sm leading-tight tracking-wide">SMART CRIME</p>
+          <p className="text-teal text-xs leading-tight tracking-wide font-medium">ANALYSIS PORTAL</p>
         </div>
         <button
           type="button"
           onClick={onClose}
-          className="md:hidden text-slate-400 hover:text-white"
+          className="md:hidden text-muted hover:text-charcoal"
           aria-label="Close menu"
         >
           <CloseIcon className="h-5 w-5" />
@@ -41,8 +41,8 @@ function Sidebar({ isOpen = false, onClose = () => {} }) {
             className={({ isActive }) =>
               `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors border-l-4 ${
                 isActive
-                  ? 'bg-slate-800/70 text-white border-blue-500'
-                  : 'border-transparent text-slate-400 hover:text-white hover:bg-slate-800/40'
+                  ? 'bg-pale text-teal border-teal'
+                  : 'border-transparent text-muted hover:text-charcoal hover:bg-pale/60'
               }`
             }
           >
@@ -52,9 +52,9 @@ function Sidebar({ isOpen = false, onClose = () => {} }) {
         ))}
       </nav>
 
-      <div className="px-5 py-4 border-t border-slate-800">
-        <p className="text-xs font-medium text-slate-300">Academic Project</p>
-        <p className="text-xs text-slate-500 mt-0.5">Data Analytics &amp; Visualization</p>
+      <div className="px-5 py-4 border-t border-line">
+        <p className="text-xs font-medium text-charcoal">Academic Project</p>
+        <p className="text-xs text-muted mt-0.5">Data Analytics &amp; Visualization</p>
       </div>
     </aside>
   );

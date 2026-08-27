@@ -14,33 +14,33 @@ function Header({ onMenuClick = () => {} }) {
   const meta = PAGE_META[pathname] ?? { title: 'Smart Crime Analysis Portal', description: '' };
 
   return (
-    <header className="sticky top-0 z-20 bg-white border-b border-slate-200 px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
+    <header className="sticky top-0 z-20 bg-white border-b border-line px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
       <div className="flex items-center gap-3 min-w-0">
         <button
           type="button"
           onClick={onMenuClick}
-          className="md:hidden text-slate-500 hover:text-slate-700"
+          className="md:hidden text-muted hover:text-charcoal"
           aria-label="Open menu"
         >
           <MenuIcon className="h-6 w-6" />
         </button>
         <div className="min-w-0">
-          <h1 className="text-sm sm:text-base font-semibold text-slate-800 truncate">{meta.title}</h1>
+          <h1 className="text-sm sm:text-base font-semibold text-charcoal truncate">{meta.title}</h1>
           {meta.description && (
-            <p className="hidden sm:block text-xs text-slate-400 truncate">{meta.description}</p>
+            <p className="hidden sm:block text-xs text-muted truncate">{meta.description}</p>
           )}
         </div>
       </div>
 
       <div className="flex items-center gap-3 sm:gap-4">
-        <button type="button" className="text-slate-400 hover:text-slate-600" aria-label="Search">
+        <button type="button" className="text-muted hover:text-teal transition-colors" aria-label="Search">
           <SearchIcon className="h-5 w-5" />
         </button>
-        <button type="button" className="text-slate-400 hover:text-slate-600" aria-label="Notifications">
+        <button type="button" className="text-muted hover:text-teal transition-colors" aria-label="Notifications">
           <BellIcon className="h-5 w-5" />
         </button>
         <div
-          className="h-8 w-8 rounded-full bg-blue-600 text-white flex items-center justify-center"
+          className="h-8 w-8 rounded-full bg-teal text-white flex items-center justify-center"
           aria-label="Project account"
         >
           <UserIcon className="h-4 w-4" />
