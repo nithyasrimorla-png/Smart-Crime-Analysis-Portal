@@ -1,13 +1,14 @@
 const express = require("express");
 
 const {
-    getCrimes,
-    getCrimeStats
+    getCrimeStats,
+    getCrimes
 } = require("../controllers/crimeController");
 
 const router = express.Router();
 
-router.get("/", getCrimes);
 router.get("/stats", getCrimeStats);
+
+router.get("/", getCrimes);
 
 module.exports = router;

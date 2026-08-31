@@ -3,20 +3,25 @@ const cors = require("cors");
 require("dotenv").config();
 
 const pool = require("./config/db");
+const crimeRoutes = require("./routes/crimeRoutes");
 
 const app = express();
 
+
+// Middleware
 app.use(cors());
 app.use(express.json());
 
-// Test API
+
+
 app.get("/", (req, res) => {
     res.json({
         message: "Smart Crime Analysis Portal API is running"
     });
 });
 
-// Test database connection
+
+
 app.get("/api/test-db", async (req, res) => {
     try {
         const result = await pool.query(
@@ -37,6 +42,11 @@ app.get("/api/test-db", async (req, res) => {
         });
     }
 });
+
+
+app.use("/api/crimes", crimeRoutes);
+
+
 
 const PORT = process.env.PORT || 5000;
 

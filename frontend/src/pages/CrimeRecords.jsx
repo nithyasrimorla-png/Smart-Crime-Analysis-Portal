@@ -1,205 +1,232 @@
-import { useState } from 'react';
-import PageHeader from '../components/PageHeader';
-import CrimeTable from '../components/CrimeTable';
-import { ChevronLeftIcon, ChevronRightIcon } from '../components/Icons';
-
-const initialFilters = {
-  search: '',
-  crimeType: '',
-  district: '',
-  arrest: '',
-  year: '',
-  location: '',
-};
-
-function SelectField({ label, name, value, onChange, options }) {
-  return (
-    <label className="flex flex-col gap-1 text-sm">
-      <span className="font-medium text-[#6B756F]">{label}</span>
-      <select
-        name={name}
-        value={value}
-        onChange={onChange}
-        className="rounded-lg border border-[#DCE3DA] px-3 py-2 text-sm text-[#29332D] focus:outline-none focus:ring-2 focus:ring-[#3A7D7C] focus:border-[#3A7D7C]"
-      >
-        <option value="">All</option>
-        {options.map((opt) => (
-          <option key={opt} value={opt}>
-            {opt}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
-function TextField({ label, name, value, onChange, placeholder }) {
-  return (
-    <label className="flex flex-col gap-1 text-sm">
-      <span className="font-medium text-[#6B756F]">{label}</span>
-      <input
-        type="text"
-        name={name}
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        className="rounded-lg border border-[#DCE3DA] px-3 py-2 text-sm text-[#29332D] focus:outline-none focus:ring-2 focus:ring-[#3A7D7C] focus:border-[#3A7D7C]"
-      />
-    </label>
-  );
-}
+import { useEffect, useState } from "react";
+import PageHeader from "../components/PageHeader";
+import CrimeTable from "../components/CrimeTable";
+import Loading from "../components/Loading";
+import EmptyState from "../components/EmptyState";
+import { DatabaseIcon } from "../components/Icons";
+import { getCrimes } from "../services/api";
 
 function CrimeRecords() {
-  const [filters, setFilters] = useState(initialFilters);
-  const [records] = useState([]);
-  const [loading] = useState(false);
-  const [page, setPage] = useState(1);
-  const totalPages = 1;
+  const [records, setRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  function handleChange(e) {
-    setFilters((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }));
+  const [search, setSearch] = useState("");
+  const [crimeType, setCrimeType] = useState("");
+  const [district, setDistrict] = useState("");
+  const [arrest, setArrest] = useState("");
+  const [year, setYear] = useState("");
+
+  async function loadRecords() {
+    try {
+      setLoading(true);
+      setError("");
+
+      const response = await getCrimes({
+        limit: 50,
+      });
+
+      console.log("Crime Records API:", response);
+
+      if (response?.success) {
+        setRecords(response.data ?? []);
+      } else {
+        setRecords([]);
+        setError("Unable to load crime records.");
+      }
+    } catch (err) {
+      console.error("Crime records error:", err);
+      setError("Unable to connect to the backend.");
+      setRecords([]);
+    } finally {
+      setLoading(false);
+    }
   }
 
-  function handleApply() {
-    // Integration point: call getCrimes({ ...filters, page }) once backend is live.
-    setPage(1);
+  useEffect(() => {
+    loadRecords();
+  }, []);
+
+  function handleSearch(event) {
+    event.preventDefault();
+
+    // Filtering will be connected to the backend in the next step.
+    console.log("Search:", {
+      search,
+      crimeType,
+      district,
+      arrest,
+      year,
+    });
   }
 
-  function handleClear() {
-    setFilters(initialFilters);
-    setPage(1);
+  function clearFilters() {
+    setSearch("");
+    setCrimeType("");
+    setDistrict("");
+    setArrest("");
+    setYear("");
   }
 
   return (
     <div>
       <PageHeader
         title="Crime Records"
-        description="Search, filter and explore historical crime records."
+        description="Browse, search and filter historical crime records."
       />
 
       {/* Filters */}
-      <div className="bg-white rounded-xl border border-[#DCE3DA] shadow-sm p-5 mb-6">
-        <h3 className="text-sm font-semibold text-[#29332D] mb-4">
-          Filters
-        </h3>
+      <div className="bg-white border border-slate-200 rounded-xl p-4 mb-6">
+        <form
+          onSubmit={handleSearch}
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+        >
+          {/* Search */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Search
+            </label>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          <TextField
-            label="Search Crime"
-            name="search"
-            value={filters.search}
-            onChange={handleChange}
-            placeholder="e.g. Theft, Assault..."
-          />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Case number, block, description..."
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
 
-          <SelectField
-            label="Crime Type"
-            name="crimeType"
-            value={filters.crimeType}
-            onChange={handleChange}
-            options={[]}
-          />
+          {/* Crime Type */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Crime Type
+            </label>
 
-          <SelectField
-            label="District"
-            name="district"
-            value={filters.district}
-            onChange={handleChange}
-            options={[]}
-          />
-
-          <SelectField
-            label="Arrest Status"
-            name="arrest"
-            value={filters.arrest}
-            onChange={handleChange}
-            options={['Yes', 'No']}
-          />
-
-          <SelectField
-            label="Year"
-            name="year"
-            value={filters.year}
-            onChange={handleChange}
-            options={[]}
-          />
-
-          <TextField
-            label="Location"
-            name="location"
-            value={filters.location}
-            onChange={handleChange}
-            placeholder="e.g. Ward, Community Area..."
-          />
-        </div>
-
-        <div className="flex items-center gap-3 mt-5">
-          <button
-            type="button"
-            onClick={handleApply}
-            className="px-4 py-2 text-sm font-medium rounded-lg bg-[#3A7D7C] text-white hover:bg-[#2F6867] transition-colors"
-          >
-            Apply Filters
-          </button>
-
-          <button
-            type="button"
-            onClick={handleClear}
-            className="px-4 py-2 text-sm font-medium rounded-lg border border-[#DCE3DA] text-[#6B756F] hover:bg-[#E8F0E9] transition-colors"
-          >
-            Clear Filters
-          </button>
-        </div>
-      </div>
-
-      <CrimeTable records={records} loading={loading} />
-
-      {/* Pagination */}
-      <div className="flex items-center justify-between mt-4 text-sm">
-        <p className="text-[#6B756F]">
-          Page {page} of {totalPages}
-        </p>
-
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            disabled={page <= 1}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            className="h-8 w-8 flex items-center justify-center rounded-lg border border-[#DCE3DA] text-[#6B756F] disabled:opacity-40 hover:bg-[#E8F0E9]"
-            aria-label="Previous page"
-          >
-            <ChevronLeftIcon className="h-4 w-4" />
-          </button>
-
-          {[1, 2, 3].map((n) => (
-            <button
-              key={n}
-              type="button"
-              onClick={() => setPage(n)}
-              className={`h-8 w-8 flex items-center justify-center rounded-lg text-sm border ${
-                page === n
-                  ? 'bg-[#3A7D7C] text-white border-[#3A7D7C]'
-                  : 'border-[#DCE3DA] text-[#6B756F] hover:bg-[#E8F0E9]'
-              }`}
+            <select
+              value={crimeType}
+              onChange={(e) => setCrimeType(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg"
             >
-              {n}
-            </button>
-          ))}
+              <option value="">All Crime Types</option>
+              <option value="THEFT">THEFT</option>
+              <option value="BATTERY">BATTERY</option>
+              <option value="CRIMINAL DAMAGE">CRIMINAL DAMAGE</option>
+              <option value="ASSAULT">ASSAULT</option>
+              <option value="MOTOR VEHICLE THEFT">
+                MOTOR VEHICLE THEFT
+              </option>
+              <option value="BURGLARY">BURGLARY</option>
+              <option value="ROBBERY">ROBBERY</option>
+              <option value="NARCOTICS">NARCOTICS</option>
+              <option value="HOMICIDE">HOMICIDE</option>
+            </select>
+          </div>
 
-          <button
-            type="button"
-            disabled={page >= totalPages}
-            onClick={() => setPage((p) => p + 1)}
-            className="h-8 w-8 flex items-center justify-center rounded-lg border border-[#DCE3DA] text-[#6B756F] disabled:opacity-40 hover:bg-[#E8F0E9]"
-            aria-label="Next page"
-          >
-            <ChevronRightIcon className="h-4 w-4" />
-          </button>
-        </div>
+          {/* District */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              District
+            </label>
+
+            <select
+              value={district}
+              onChange={(e) => setDistrict(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+            >
+              <option value="">All Districts</option>
+
+              {Array.from({ length: 25 }, (_, i) => i + 1).map(
+                (number) => (
+                  <option key={number} value={number}>
+                    District {number}
+                  </option>
+                )
+              )}
+            </select>
+          </div>
+
+          {/* Arrest */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Arrest
+            </label>
+
+            <select
+              value={arrest}
+              onChange={(e) => setArrest(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+            >
+              <option value="">All</option>
+              <option value="true">Arrested</option>
+              <option value="false">Not Arrested</option>
+            </select>
+          </div>
+
+          {/* Year */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Year
+            </label>
+
+            <input
+              type="number"
+              value={year}
+              onChange={(e) => setYear(e.target.value)}
+              placeholder="e.g. 2020"
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+            />
+          </div>
+
+          {/* Buttons */}
+          <div className="flex items-end gap-2">
+            <button
+              type="submit"
+              className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Search
+            </button>
+
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="px-5 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50"
+            >
+              Clear
+            </button>
+          </div>
+        </form>
       </div>
+
+      {/* Result count */}
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-sm font-semibold text-slate-800">
+          Crime Records
+        </h2>
+
+        <span className="text-sm text-slate-500">
+          {records.length.toLocaleString()} records displayed
+        </span>
+      </div>
+
+      {/* Error */}
+      {error && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
+          {error}
+        </div>
+      )}
+
+      {/* Table */}
+      {loading ? (
+        <Loading />
+      ) : records.length > 0 ? (
+        <CrimeTable records={records} />
+      ) : (
+        <EmptyState
+          icon={DatabaseIcon}
+          title="No crime records found"
+          description="No records were returned from the database."
+        />
+      )}
     </div>
   );
 }

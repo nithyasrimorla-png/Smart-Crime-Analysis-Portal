@@ -1,193 +1,211 @@
 const pool = require("../config/db");
 
-
-const getCrimes = async (req, res) => {
-    try {
-        const limit = Math.min(
-            parseInt(req.query.limit) || 100,
-            500
-        );
-
-        const offset = Math.max(
-            parseInt(req.query.offset) || 0,
-            0
-        );
-
-        const result = await pool.query(
-            `
-            SELECT *
-            FROM crimes
-            ORDER BY date DESC
-            LIMIT $1 OFFSET $2
-            `,
-            [limit, offset]
-        );
-
-        res.json({
-            success: true,
-            count: result.rows.length,
-            data: result.rows
-        });
-
-    } catch (error) {
-        console.error("GET CRIMES ERROR:", error.message);
-
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
-    }
-};
-
-
+// Get crime summary / dashboard statistics
 const getCrimeStats = async (req, res) => {
     try {
-        const totalResult = await pool.query(
-            `SELECT COUNT(*) AS total FROM crimes`
-        );
+        // Total crimes
+        const totalResult = await pool.query(`
+            SELECT COUNT(*) AS total
+            FROM crimes
+        `);
 
-        const crimeTypesResult = await pool.query(
-            `
+        // Crime types
+        const crimeTypesResult = await pool.query(`
             SELECT primary_type, COUNT(*) AS count
             FROM crimes
             WHERE primary_type IS NOT NULL
             GROUP BY primary_type
             ORDER BY count DESC
-            `
-        );
+        `);
 
-        const districtResult = await pool.query(
-            `
+        // Districts
+        const districtsResult = await pool.query(`
             SELECT district, COUNT(*) AS count
             FROM crimes
             WHERE district IS NOT NULL
             GROUP BY district
             ORDER BY count DESC
-            `
-        );
+        `);
 
-        const arrestResult = await pool.query(
-            `
+        // Arrest analysis
+        const arrestsResult = await pool.query(`
             SELECT arrest, COUNT(*) AS count
             FROM crimes
+            WHERE arrest IS NOT NULL
             GROUP BY arrest
-            `
-        );
+            ORDER BY arrest
+        `);
 
-        const domesticResult = await pool.query(
-            `
+        // Domestic crime analysis
+        const domesticResult = await pool.query(`
             SELECT domestic, COUNT(*) AS count
             FROM crimes
+            WHERE domestic IS NOT NULL
             GROUP BY domestic
-            `
-        );
+            ORDER BY domestic
+        `);
 
         res.json({
             success: true,
-
             totalCrimes: Number(totalResult.rows[0].total),
-
             crimeTypes: crimeTypesResult.rows,
-
-            districts: districtResult.rows,
-
-            arrests: arrestResult.rows,
-
+            districts: districtsResult.rows,
+            arrests: arrestsResult.rows,
             domestic: domesticResult.rows
         });
 
     } catch (error) {
-        console.error("STATS ERROR:", error.message);
+        console.error("CRIME STATS ERROR:", error.message);
 
         res.status(500).json({
             success: false,
-            message: error.message
+            message: "Failed to fetch crime statistics"
         });
     }
 };
 
 
-const searchCrimes = async (req, res) => {
+// Get crime records with search, filters and pagination
+const getCrimes = async (req, res) => {
     try {
         const {
-            type,
-            district,
-            arrest,
-            domestic,
-            limit = 100
+            page = 1,
+            limit = 20,
+            search = "",
+            crimeType = "",
+            district = "",
+            arrest = "",
+            year = ""
         } = req.query;
+
+        const currentPage = Math.max(Number(page) || 1, 1);
+        const pageLimit = Math.min(Number(limit) || 20, 500);
+        const offset = (currentPage - 1) * pageLimit;
 
         const conditions = [];
         const values = [];
 
-        let parameterIndex = 1;
+        // Search
+        if (search.trim()) {
+            values.push(`%${search.trim()}%`);
 
-        if (type) {
-            conditions.push(`primary_type = $${parameterIndex}`);
-            values.push(type);
-            parameterIndex++;
+            conditions.push(`
+                (
+                    case_number ILIKE $${values.length}
+                    OR description ILIKE $${values.length}
+                    OR location_description ILIKE $${values.length}
+                    OR primary_type ILIKE $${values.length}
+                )
+            `);
         }
 
+        // Crime type
+        if (crimeType) {
+            values.push(crimeType);
+
+            conditions.push(
+                `primary_type = $${values.length}`
+            );
+        }
+
+        // District
         if (district) {
-            conditions.push(`district = $${parameterIndex}`);
-            values.push(district);
-            parameterIndex++;
+            values.push(Number(district));
+
+            conditions.push(
+                `district = $${values.length}`
+            );
         }
 
-        if (arrest !== undefined) {
-            conditions.push(`arrest = $${parameterIndex}`);
+        // Arrest
+        if (arrest !== "") {
             values.push(arrest === "true");
-            parameterIndex++;
+
+            conditions.push(
+                `arrest = $${values.length}`
+            );
         }
 
-        if (domestic !== undefined) {
-            conditions.push(`domestic = $${parameterIndex}`);
-            values.push(domestic === "true");
-            parameterIndex++;
+        // Year
+        if (year) {
+            values.push(Number(year));
+
+            conditions.push(`
+                EXTRACT(YEAR FROM date) = $${values.length}
+            `);
         }
 
-        const safeLimit = Math.min(
-            parseInt(limit) || 100,
-            500
+        const whereClause =
+            conditions.length > 0
+                ? `WHERE ${conditions.join(" AND ")}`
+                : "";
+
+        // Get total matching records
+        const countResult = await pool.query(
+            `
+            SELECT COUNT(*) AS total
+            FROM crimes
+            ${whereClause}
+            `,
+            values
         );
 
-        values.push(safeLimit);
+        const total = Number(countResult.rows[0].total);
 
-        let query = `
-            SELECT *
+        // Get paginated records
+        const dataValues = [...values];
+
+        dataValues.push(pageLimit);
+        const limitPosition = dataValues.length;
+
+        dataValues.push(offset);
+        const offsetPosition = dataValues.length;
+
+        const result = await pool.query(
+            `
+            SELECT
+                id,
+                case_number,
+                date,
+                primary_type,
+                description,
+                location_description,
+                arrest,
+                domestic,
+                district,
+                latitude,
+                longitude
             FROM crimes
-        `;
-
-        if (conditions.length > 0) {
-            query += ` WHERE ${conditions.join(" AND ")}`;
-        }
-
-        query += `
+            ${whereClause}
             ORDER BY date DESC
-            LIMIT $${parameterIndex}
-        `;
-
-        const result = await pool.query(query, values);
+            LIMIT $${limitPosition}
+            OFFSET $${offsetPosition}
+            `,
+            dataValues
+        );
 
         res.json({
             success: true,
-            count: result.rows.length,
-            data: result.rows
+            total,
+            page: currentPage,
+            limit: pageLimit,
+            totalPages: Math.ceil(total / pageLimit),
+            records: result.rows
         });
 
     } catch (error) {
-        console.error("SEARCH ERROR:", error.message);
+        console.error("CRIME RECORDS ERROR:", error.message);
 
         res.status(500).json({
             success: false,
-            message: error.message
+            message: "Failed to fetch crime records"
         });
     }
 };
 
 
+// Export controller functions
 module.exports = {
-    getCrimes,
     getCrimeStats,
-    searchCrimes
+    getCrimes
 };
