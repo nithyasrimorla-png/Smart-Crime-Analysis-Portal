@@ -17,27 +17,32 @@ function CrimeRecords() {
   const [arrest, setArrest] = useState("");
   const [year, setYear] = useState("");
 
-  async function loadRecords() {
+  async function loadRecords(filters = {}) {
     try {
       setLoading(true);
       setError("");
 
       const response = await getCrimes({
+        page: 1,
         limit: 50,
+        ...filters,
       });
 
       console.log("Crime Records API:", response);
 
       if (response?.success) {
-        setRecords(response.data ?? []);
+        // IMPORTANT:
+        // Backend returns records, not data
+        setRecords(response.records || []);
       } else {
         setRecords([]);
         setError("Unable to load crime records.");
       }
     } catch (err) {
       console.error("Crime records error:", err);
-      setError("Unable to connect to the backend.");
+
       setRecords([]);
+      setError("Unable to connect to the backend.");
     } finally {
       setLoading(false);
     }
@@ -50,13 +55,12 @@ function CrimeRecords() {
   function handleSearch(event) {
     event.preventDefault();
 
-    // Filtering will be connected to the backend in the next step.
-    console.log("Search:", {
-      search,
-      crimeType,
-      district,
-      arrest,
-      year,
+    loadRecords({
+      search: search.trim(),
+      primary_type: crimeType,
+      district: district,
+      arrest: arrest,
+      year: year,
     });
   }
 
@@ -66,6 +70,8 @@ function CrimeRecords() {
     setDistrict("");
     setArrest("");
     setYear("");
+
+    loadRecords();
   }
 
   return (
@@ -91,7 +97,7 @@ function CrimeRecords() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Case number, block, description..."
+              placeholder="Case number, description..."
               className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>

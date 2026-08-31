@@ -1,6 +1,8 @@
 const pool = require("../config/db");
 
-// Get crime summary / dashboard statistics
+// ==========================================
+// GET CRIME STATISTICS
+// ==========================================
 const getCrimeStats = async (req, res) => {
     try {
         // Total crimes
@@ -65,12 +67,18 @@ const getCrimeStats = async (req, res) => {
 };
 
 
-// Get crime records with search, filters and pagination
 const getCrimes = async (req, res) => {
     try {
+        const page = Math.max(Number(req.query.page) || 1, 1);
+
+        const limit = Math.min(
+            Math.max(Number(req.query.limit) || 20, 1),
+            100
+        );
+
+        const offset = (page - 1) * limit;
+
         const {
-            page = 1,
-            limit = 20,
             search = "",
             crimeType = "",
             district = "",
@@ -78,20 +86,12 @@ const getCrimes = async (req, res) => {
             year = ""
         } = req.query;
 
-        const pageNumber = Math.max(Number(page) || 1, 1);
-        const limitNumber = Math.min(
-            Math.max(Number(limit) || 20, 1),
-            500
-        );
-
-        const offset = (pageNumber - 1) * limitNumber;
-
         const conditions = [];
         const values = [];
 
         // Search
-        if (search.trim() !== "") {
-            values.push(`%${search.trim()}%`);
+        if (search) {
+            values.push(`%${search}%`);
 
             conditions.push(`
                 (
@@ -103,8 +103,8 @@ const getCrimes = async (req, res) => {
         }
 
         // Crime type
-        if (crimeType.trim() !== "") {
-            values.push(crimeType.trim());
+        if (crimeType) {
+            values.push(crimeType);
 
             conditions.push(
                 `primary_type = $${values.length}`
@@ -112,7 +112,7 @@ const getCrimes = async (req, res) => {
         }
 
         // District
-        if (district.trim() !== "") {
+        if (district) {
             values.push(Number(district));
 
             conditions.push(
@@ -121,7 +121,7 @@ const getCrimes = async (req, res) => {
         }
 
         // Arrest
-        if (arrest === "true" || arrest === "false") {
+        if (arrest !== "") {
             values.push(arrest === "true");
 
             conditions.push(
@@ -130,12 +130,12 @@ const getCrimes = async (req, res) => {
         }
 
         // Year
-        if (year.trim() !== "") {
+        if (year) {
             values.push(Number(year));
 
-            conditions.push(`
-                EXTRACT(YEAR FROM date) = $${values.length}
-            `);
+            conditions.push(
+                `EXTRACT(YEAR FROM date) = $${values.length}`
+            );
         }
 
         const whereClause =
@@ -155,14 +155,9 @@ const getCrimes = async (req, res) => {
 
         const total = Number(countResult.rows[0].total);
 
-        // Add pagination values
-        values.push(limitNumber);
-        const limitPosition = values.length;
+        // Get paginated records
+        const dataValues = [...values, limit, offset];
 
-        values.push(offset);
-        const offsetPosition = values.length;
-
-        // Get records
         const result = await pool.query(
             `
             SELECT
@@ -180,19 +175,18 @@ const getCrimes = async (req, res) => {
             FROM crimes
             ${whereClause}
             ORDER BY date DESC
-            LIMIT $${limitPosition}
-            OFFSET $${offsetPosition}
+            LIMIT $${dataValues.length - 1}
+            OFFSET $${dataValues.length}
             `,
-            values
+            dataValues
         );
 
         res.json({
             success: true,
-            page: pageNumber,
-            limit: limitNumber,
-            total: total,
-            totalPages: Math.ceil(total / limitNumber),
-            records: result.rows
+            total,
+            page,
+            limit,
+            data: result.rows
         });
 
     } catch (error) {
@@ -204,7 +198,6 @@ const getCrimes = async (req, res) => {
         });
     }
 };
-
 
 module.exports = {
     getCrimeStats,
