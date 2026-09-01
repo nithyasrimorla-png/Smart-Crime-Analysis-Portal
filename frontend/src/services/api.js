@@ -1,77 +1,32 @@
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API_URL =
+  import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
-async function request(endpoint, options = {}) {
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    headers: {
-      "Content-Type": "application/json",
-    },
-    ...options,
-  });
+export async function getCrimeStats() {
+  const response = await fetch(`${API_URL}/crimes/stats`);
 
   if (!response.ok) {
-    throw new Error(
-      `Request to ${endpoint} failed with status ${response.status}`
-    );
+    throw new Error("Failed to fetch crime statistics");
   }
 
-  return await response.json();
+  return response.json();
 }
 
-function toQueryString(params = {}) {
-  const cleaned = Object.fromEntries(
-    Object.entries(params).filter(
-      ([, value]) =>
-        value !== "" &&
-        value !== undefined &&
-        value !== null
-    )
+export async function getCrimes(params = {}) {
+  const query = new URLSearchParams();
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      query.append(key, value);
+    }
+  });
+
+  const response = await fetch(
+    `${API_URL}/crimes?${query.toString()}`
   );
 
-  const query = new URLSearchParams(cleaned).toString();
+  if (!response.ok) {
+    throw new Error("Failed to fetch crime records");
+  }
 
-  return query ? `?${query}` : "";
+  return response.json();
 }
-
-export function getCrimes(params = {}) {
-  return request(
-    `/api/crimes${toQueryString(params)}`
-  );
-}
-
-export function getCrimeStats() {
-  return request("/api/crimes/stats");
-}
-
-export function getCrimeTrends(params = {}) {
-  return request(
-    `/api/crimes/trends${toQueryString(params)}`
-  );
-}
-
-export function getCrimeTypes(params = {}) {
-  return request(
-    `/api/crimes/types${toQueryString(params)}`
-  );
-}
-
-export function getDistricts(params = {}) {
-  return request(
-    `/api/crimes/districts${toQueryString(params)}`
-  );
-}
-
-export function getCrimeMapData(params = {}) {
-  return request(
-    `/api/crimes/map${toQueryString(params)}`
-  );
-}
-
-export default {
-  getCrimes,
-  getCrimeStats,
-  getCrimeTrends,
-  getCrimeTypes,
-  getDistricts,
-  getCrimeMapData,
-};

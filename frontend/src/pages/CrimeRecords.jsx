@@ -8,6 +8,7 @@ import { getCrimes } from "../services/api";
 
 function CrimeRecords() {
   const [records, setRecords] = useState([]);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -17,51 +18,62 @@ function CrimeRecords() {
   const [arrest, setArrest] = useState("");
   const [year, setYear] = useState("");
 
-  async function loadRecords(filters = {}) {
+  const [page, setPage] = useState(1);
+  const [limit] = useState(50);
+
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+
+  async function loadRecords(currentPage = page) {
     try {
       setLoading(true);
       setError("");
 
       const response = await getCrimes({
-        page: 1,
-        limit: 50,
-        ...filters,
+        page: currentPage,
+        limit,
+        search,
+        crimeType,
+        district,
+        arrest,
+        year,
       });
 
       console.log("Crime Records API:", response);
 
       if (response?.success) {
-        // IMPORTANT:
-        // Backend returns records, not data
         setRecords(response.records || []);
+        setTotal(response.total || 0);
+        setTotalPages(response.totalPages || 0);
       } else {
         setRecords([]);
+        setTotal(0);
+        setTotalPages(0);
         setError("Unable to load crime records.");
       }
     } catch (err) {
       console.error("Crime records error:", err);
 
-      setRecords([]);
       setError("Unable to connect to the backend.");
+      setRecords([]);
+      setTotal(0);
+      setTotalPages(0);
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    loadRecords();
+    loadRecords(1);
   }, []);
 
   function handleSearch(event) {
     event.preventDefault();
 
-    loadRecords({
-      search: search.trim(),
-      primary_type: crimeType,
-      district: district,
-      arrest: arrest,
-      year: year,
-    });
+    setPage(1);
+
+    // Load using the selected filters
+    loadRecords(1);
   }
 
   function clearFilters() {
@@ -71,7 +83,28 @@ function CrimeRecords() {
     setArrest("");
     setYear("");
 
-    loadRecords();
+    setPage(1);
+
+    // Load all records again
+    setTimeout(() => {
+      loadRecords(1);
+    }, 0);
+  }
+
+  function handlePrevious() {
+    if (page > 1) {
+      const newPage = page - 1;
+      setPage(newPage);
+      loadRecords(newPage);
+    }
+  }
+
+  function handleNext() {
+    if (page < totalPages) {
+      const newPage = page + 1;
+      setPage(newPage);
+      loadRecords(newPage);
+    }
   }
 
   return (
@@ -203,14 +236,14 @@ function CrimeRecords() {
         </form>
       </div>
 
-      {/* Result count */}
+      {/* Result Count */}
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-sm font-semibold text-slate-800">
           Crime Records
         </h2>
 
         <span className="text-sm text-slate-500">
-          {records.length.toLocaleString()} records displayed
+          {total.toLocaleString()} total records
         </span>
       </div>
 
@@ -225,12 +258,38 @@ function CrimeRecords() {
       {loading ? (
         <Loading />
       ) : records.length > 0 ? (
-        <CrimeTable records={records} />
+        <>
+          <CrimeTable records={records} />
+
+          {/* Pagination */}
+          <div className="flex items-center justify-between mt-6">
+            <button
+              onClick={handlePrevious}
+              disabled={page === 1}
+              className="px-4 py-2 border border-slate-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
+            >
+              Previous
+            </button>
+
+            <span className="text-sm text-slate-600">
+              Page <strong>{page}</strong> of{" "}
+              <strong>{totalPages.toLocaleString()}</strong>
+            </span>
+
+            <button
+              onClick={handleNext}
+              disabled={page >= totalPages}
+              className="px-4 py-2 border border-slate-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
+            >
+              Next
+            </button>
+          </div>
+        </>
       ) : (
         <EmptyState
           icon={DatabaseIcon}
           title="No crime records found"
-          description="No records were returned from the database."
+          description="No records matched your search or filters."
         />
       )}
     </div>

@@ -1,475 +1,351 @@
 import { useEffect, useState } from "react";
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  PieChart,
-  Pie,
-  Cell,
-  BarChart,
-  Bar,
-  Legend,
-} from "recharts";
-
 import PageHeader from "../components/PageHeader";
-import StatCard from "../components/StatCard";
-import ChartCard from "../components/ChartCard";
+import Loading from "../components/Loading";
 import EmptyState from "../components/EmptyState";
-import CrimeTable from "../components/CrimeTable";
-
 import {
   DatabaseIcon,
-  AlertTriangleIcon,
+  BarChartIcon,
+  MapPinIcon,
   CheckCircleIcon,
-  BuildingIcon,
-  TrendUpIcon,
-  PieChartIcon,
 } from "../components/Icons";
-
-import {
-  getCrimes,
-  getCrimeStats,
-  getCrimeTrends,
-  getCrimeTypes,
-  getDistricts,
-} from "../services/api";
-
-const CHART_COLORS = [
-  "#2563eb",
-  "#0ea5e9",
-  "#6366f1",
-  "#22c55e",
-  "#f59e0b",
-  "#ef4444",
-];
+import { getCrimeStats } from "../services/api";
 
 function Dashboard() {
   const [stats, setStats] = useState(null);
-  const [trends, setTrends] = useState([]);
-  const [typeDistribution, setTypeDistribution] = useState([]);
-  const [districtData, setDistrictData] = useState([]);
-  const [arrestData, setArrestData] = useState([]);
-  const [recentRecords, setRecentRecords] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    let isMounted = true;
-
-    async function loadDashboardData() {
-      setLoading(true);
-
+    async function loadStats() {
       try {
-        const [
-          statsRes,
-          trendsRes,
-          typesRes,
-          districtsRes,
-          recordsRes,
-        ] = await Promise.allSettled([
-          getCrimeStats(),
-          getCrimeTrends(),
-          getCrimeTypes(),
-          getDistricts(),
-          getCrimes({ limit: 5 }),
-        ]);
+        setLoading(true);
+        setError("");
 
-        if (!isMounted) return;
+        const response = await getCrimeStats();
 
-        
-        if (statsRes.status === "fulfilled") {
-          setStats(statsRes.value);
+        console.log("Crime Stats API:", response);
+
+        if (response?.success) {
+          setStats(response);
+        } else {
+          setError("Unable to load crime statistics.");
         }
-
-        if (trendsRes.status === "fulfilled") {
-          const data = trendsRes.value;
-
-          setTrends(
-            Array.isArray(data)
-              ? data
-              : data?.trends ?? []
-          );
-        }
-
-       
-        if (typesRes.status === "fulfilled") {
-          const data = typesRes.value;
-
-          const types = Array.isArray(data)
-            ? data
-            : data?.crimeTypes ?? [];
-
-          setTypeDistribution(
-            types.map((item) => ({
-              type: item.primary_type,
-              count: Number(item.count),
-            }))
-          );
-        }
-
-        
-        if (districtsRes.status === "fulfilled") {
-          const data = districtsRes.value;
-
-          const districts = Array.isArray(data)
-            ? data
-            : data?.districts ?? [];
-
-          setDistrictData(
-            districts.map((item) => ({
-              district: String(item.district),
-              count: Number(item.count),
-            }))
-          );
-        }
-
-        
-        if (statsRes.status === "fulfilled") {
-          const arrests = statsRes.value?.arrests ?? [];
-
-          setArrestData(
-            arrests.map((item) => ({
-              label: item.arrest ? "Arrested" : "Not Arrested",
-              count: Number(item.count),
-            }))
-          );
-        }
-
-        
-        if (recordsRes.status === "fulfilled") {
-          const data = recordsRes.value;
-
-          setRecentRecords(
-            data?.records ??
-              (Array.isArray(data) ? data : [])
-          );
-        }
-      } catch (error) {
-        console.error("Dashboard loading error:", error);
+      } catch (err) {
+        console.error("Dashboard stats error:", err);
+        setError("Unable to connect to the backend.");
       } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+        setLoading(false);
       }
     }
 
-    loadDashboardData();
-
-    return () => {
-      isMounted = false;
-    };
+    loadStats();
   }, []);
+
+  if (loading) {
+    return (
+      <div>
+        <PageHeader
+          title="Dashboard"
+          description="Overview of historical crime data and statistics."
+        />
+
+        <Loading />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div>
+        <PageHeader
+          title="Dashboard"
+          description="Overview of historical crime data and statistics."
+        />
+
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
+          {error}
+        </div>
+      </div>
+    );
+  }
+
+  if (!stats) {
+    return (
+      <div>
+        <PageHeader
+          title="Dashboard"
+          description="Overview of historical crime data and statistics."
+        />
+
+        <EmptyState
+          icon={DatabaseIcon}
+          title="No crime statistics available"
+          description="Crime statistics could not be loaded."
+        />
+      </div>
+    );
+  }
+
+  const crimeTypes = stats.crimeTypes || [];
+  const districts = stats.districts || [];
+  const arrests = stats.arrests || [];
+  const domestic = stats.domestic || [];
+
+  const arrestedCount =
+    arrests.find((item) => item.arrest === true)?.count || 0;
+
+  const topCrimeTypes = crimeTypes.slice(0, 10);
+  const topDistricts = districts.slice(0, 10);
 
   return (
     <div>
       <PageHeader
         title="Dashboard"
-        description="Overview of historical crime records and analytical insights."
+        description="Overview of historical crime data and statistics."
       />
 
-      
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+        {/* Total Crimes */}
+        <div className="bg-white border border-slate-200 rounded-xl p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-slate-500">
+                Total Crimes
+              </p>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              <h2 className="text-3xl font-bold text-slate-900 mt-2">
+                {Number(stats.totalCrimes || 0).toLocaleString()}
+              </h2>
 
-        <StatCard
-          icon={DatabaseIcon}
-          title="Total Crime Records"
-          value={
-            stats?.totalRecords != null
-              ? Number(stats.totalRecords).toLocaleString()
-              : "—"
-          }
-          description="All recorded crime entries in the database."
-          loading={loading}
-        />
+              <p className="text-xs text-slate-500 mt-2">
+                Total historical crime records
+              </p>
+            </div>
 
-        <StatCard
-          icon={AlertTriangleIcon}
-          title="Most Common Crime"
-          value={stats?.mostCommonCrime ?? "—"}
-          description="Highest-frequency crime category."
-          loading={loading}
-        />
+            <div className="p-3 bg-slate-100 rounded-lg">
+              <DatabaseIcon className="w-6 h-6 text-slate-700" />
+            </div>
+          </div>
+        </div>
 
-        <StatCard
-          icon={CheckCircleIcon}
-          title="Total Arrests"
-          value={
-            stats?.totalArrests != null
-              ? Number(stats.totalArrests).toLocaleString()
-              : "—"
-          }
-          description="Cases marked with an arrest."
-          loading={loading}
-        />
+        {/* Crime Types */}
+        <div className="bg-white border border-slate-200 rounded-xl p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-slate-500">
+                Crime Types
+              </p>
 
-        <StatCard
-          icon={BuildingIcon}
-          title="Number of Districts"
-          value={stats?.totalDistricts ?? "—"}
-          description="Distinct districts covered in the data."
-          loading={loading}
-        />
+              <h2 className="text-3xl font-bold text-slate-900 mt-2">
+                {crimeTypes.length.toLocaleString()}
+              </h2>
 
+              <p className="text-xs text-slate-500 mt-2">
+                Different crime categories
+              </p>
+            </div>
+
+            <div className="p-3 bg-slate-100 rounded-lg">
+              <BarChartIcon className="w-6 h-6 text-slate-700" />
+            </div>
+          </div>
+        </div>
+
+        {/* Districts */}
+        <div className="bg-white border border-slate-200 rounded-xl p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-slate-500">
+                Districts
+              </p>
+
+              <h2 className="text-3xl font-bold text-slate-900 mt-2">
+                {districts.length.toLocaleString()}
+              </h2>
+
+              <p className="text-xs text-slate-500 mt-2">
+                Police districts with records
+              </p>
+            </div>
+
+            <div className="p-3 bg-slate-100 rounded-lg">
+              <MapPinIcon className="w-6 h-6 text-slate-700" />
+            </div>
+          </div>
+        </div>
+
+        {/* Arrests */}
+        <div className="bg-white border border-slate-200 rounded-xl p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-slate-500">
+                Arrests
+              </p>
+
+              <h2 className="text-3xl font-bold text-slate-900 mt-2">
+                {Number(arrestedCount).toLocaleString()}
+              </h2>
+
+              <p className="text-xs text-slate-500 mt-2">
+                Records with an arrest
+              </p>
+            </div>
+
+            <div className="p-3 bg-slate-100 rounded-lg">
+              <CheckCircleIcon className="w-6 h-6 text-slate-700" />
+            </div>
+          </div>
+        </div>
       </div>
 
-      
+      {/* Top Crime Types */}
+      <div className="bg-white border border-slate-200 rounded-xl p-5 mb-6">
+        <div className="mb-5">
+          <h2 className="text-lg font-semibold text-slate-900">
+            Top Crime Types
+          </h2>
 
-      <div className="mb-6">
+          <p className="text-sm text-slate-500 mt-1">
+            Most frequently recorded crime categories
+          </p>
+        </div>
 
-        <ChartCard
-          title="Crime Trend"
-          description="Recorded crimes over time."
-          height="h-80"
-        >
-
-          {trends.length > 0 ? (
-
-            <ResponsiveContainer width="100%" height="100%">
-
-              <LineChart data={trends}>
-
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="#e2e8f0"
-                />
-
-                <XAxis
-                  dataKey="period"
-                  tick={{ fontSize: 12 }}
-                  stroke="#94a3b8"
-                />
-
-                <YAxis
-                  tick={{ fontSize: 12 }}
-                  stroke="#94a3b8"
-                />
-
-                <Tooltip />
-
-                <Line
-                  type="monotone"
-                  dataKey="count"
-                  stroke="#2563eb"
-                  strokeWidth={2}
-                  dot={false}
-                />
-
-              </LineChart>
-
-            </ResponsiveContainer>
-
-          ) : (
-
-            <EmptyState
-              icon={TrendUpIcon}
-              title="No crime trend data available"
-              description="Trend analysis will appear once historical data is connected."
-            />
-
-          )}
-
-        </ChartCard>
-
-      </div>
-
-     
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-
-        
-
-        <ChartCard
-          title="Crime Type Distribution"
-          description="Share of records by crime category."
-        >
-
-          {typeDistribution.length > 0 ? (
-
-            <ResponsiveContainer width="100%" height="100%">
-
-              <PieChart>
-
-                <Pie
-                  data={typeDistribution}
-                  dataKey="count"
-                  nameKey="type"
-                  innerRadius={60}
-                  outerRadius={90}
-                  paddingAngle={2}
-                >
-
-                  {typeDistribution.map((entry, index) => (
-
-                    <Cell
-                      key={entry.type ?? index}
-                      fill={
-                        CHART_COLORS[
-                          index % CHART_COLORS.length
-                        ]
-                      }
-                    />
-
-                  ))}
-
-                </Pie>
-
-                <Tooltip />
-
-                <Legend />
-
-              </PieChart>
-
-            </ResponsiveContainer>
-
-          ) : (
-
-            <EmptyState
-              icon={PieChartIcon}
-              title="No crime type data available"
-              description="Distribution will appear once crime categories are loaded."
-            />
-
-          )}
-
-        </ChartCard>
-
-       
-
-        <ChartCard
-          title="District Analysis"
-          description="Crime counts by district."
-        >
-
-          {districtData.length > 0 ? (
-
-            <ResponsiveContainer width="100%" height="100%">
-
-              <BarChart data={districtData}>
-
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="#e2e8f0"
-                />
-
-                <XAxis
-                  dataKey="district"
-                  tick={{ fontSize: 12 }}
-                  stroke="#94a3b8"
-                />
-
-                <YAxis
-                  tick={{ fontSize: 12 }}
-                  stroke="#94a3b8"
-                />
-
-                <Tooltip />
-
-                <Bar
-                  dataKey="count"
-                  fill="#2563eb"
-                  radius={[4, 4, 0, 0]}
-                />
-
-              </BarChart>
-
-            </ResponsiveContainer>
-
-          ) : (
-
-            <EmptyState
-              icon={BuildingIcon}
-              title="No district data available"
-              description="District-wise analysis will appear once data is connected."
-            />
-
-          )}
-
-        </ChartCard>
-
-      </div>
-
-      
-
-      <div className="mb-6">
-
-        <ChartCard
-          title="Arrest Analysis"
-          description="Comparison of arrest vs. no-arrest records."
-          height="h-72"
-        >
-
-          {arrestData.length > 0 ? (
-
-            <ResponsiveContainer width="100%" height="100%">
-
-              <BarChart
-                data={arrestData}
-                layout="vertical"
+        {topCrimeTypes.length > 0 ? (
+          <div className="space-y-4">
+            {topCrimeTypes.map((crime, index) => (
+              <div
+                key={`${crime.primary_type}-${index}`}
+                className="flex items-center justify-between"
               >
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-slate-400 w-6">
+                    {index + 1}
+                  </span>
 
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="#e2e8f0"
-                />
+                  <span className="text-sm font-semibold text-slate-700">
+                    {crime.primary_type}
+                  </span>
+                </div>
 
-                <XAxis
-                  type="number"
-                  tick={{ fontSize: 12 }}
-                  stroke="#94a3b8"
-                />
-
-                <YAxis
-                  type="category"
-                  dataKey="label"
-                  tick={{ fontSize: 12 }}
-                  stroke="#94a3b8"
-                  width={100}
-                />
-
-                <Tooltip />
-
-                <Bar
-                  dataKey="count"
-                  fill="#22c55e"
-                  radius={[0, 4, 4, 0]}
-                />
-
-              </BarChart>
-
-            </ResponsiveContainer>
-
-          ) : (
-
-            <EmptyState
-              icon={CheckCircleIcon}
-              title="No arrest data available"
-              description="Arrest analysis will appear once data is connected."
-            />
-
-          )}
-
-        </ChartCard>
-
+                <span className="text-sm font-bold text-slate-900">
+                  {Number(crime.count || 0).toLocaleString()}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            icon={DatabaseIcon}
+            title="No crime type data"
+            description="No crime type statistics are available."
+          />
+        )}
       </div>
 
-      
+      {/* Crime by District */}
+      <div className="bg-white border border-slate-200 rounded-xl p-5 mb-6">
+        <div className="mb-5">
+          <h2 className="text-lg font-semibold text-slate-900">
+            Crime by District
+          </h2>
 
-      <div>
+          <p className="text-sm text-slate-500 mt-1">
+            Crime records across police districts
+          </p>
+        </div>
 
-        <h2 className="text-sm font-semibold text-slate-800 mb-3">
-          Recent Crime Records
-        </h2>
+        {topDistricts.length > 0 ? (
+          <div className="space-y-4">
+            {topDistricts.map((district, index) => (
+              <div
+                key={`${district.district}-${index}`}
+                className="flex items-center justify-between"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-slate-400 w-6">
+                    {index + 1}
+                  </span>
 
-        <CrimeTable
-          records={recentRecords}
-          loading={loading}
-        />
+                  <span className="text-sm font-semibold text-slate-700">
+                    District {district.district}
+                  </span>
+                </div>
 
+                <span className="text-sm font-bold text-slate-900">
+                  {Number(district.count || 0).toLocaleString()}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            icon={MapPinIcon}
+            title="No district data"
+            description="No district statistics are available."
+          />
+        )}
       </div>
 
+      {/* Arrest Analysis */}
+      <div className="bg-white border border-slate-200 rounded-xl p-5 mb-6">
+        <div className="mb-5">
+          <h2 className="text-lg font-semibold text-slate-900">
+            Arrest Analysis
+          </h2>
+
+          <p className="text-sm text-slate-500 mt-1">
+            Distribution of records by arrest status
+          </p>
+        </div>
+
+        <div className="space-y-4">
+          {arrests.map((item, index) => (
+            <div
+              key={`${item.arrest}-${index}`}
+              className="flex items-center justify-between"
+            >
+              <span className="text-sm font-semibold text-slate-700">
+                {item.arrest ? "Arrested" : "Not Arrested"}
+              </span>
+
+              <span className="text-sm font-bold text-slate-900">
+                {Number(item.count || 0).toLocaleString()}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Domestic Crime Analysis */}
+      <div className="bg-white border border-slate-200 rounded-xl p-5">
+        <div className="mb-5">
+          <h2 className="text-lg font-semibold text-slate-900">
+            Domestic Crime Analysis
+          </h2>
+
+          <p className="text-sm text-slate-500 mt-1">
+            Distribution of domestic and non-domestic records
+          </p>
+        </div>
+
+        <div className="space-y-4">
+          {domestic.map((item, index) => (
+            <div
+              key={`${item.domestic}-${index}`}
+              className="flex items-center justify-between"
+            >
+              <span className="text-sm font-semibold text-slate-700">
+                {item.domestic ? "Domestic" : "Not Domestic"}
+              </span>
+
+              <span className="text-sm font-bold text-slate-900">
+                {Number(item.count || 0).toLocaleString()}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
