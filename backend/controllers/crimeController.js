@@ -80,7 +80,9 @@ const getCrimeStats = async (req, res) => {
         res.json({
             success: true,
 
-            totalCrimes: Number(totalResult.rows[0].total),
+            totalCrimes: Number(
+                totalResult.rows[0].total
+            ),
 
             crimeTypeCount: Number(
                 crimeTypeCountResult.rows[0].count
@@ -115,7 +117,10 @@ const getCrimeStats = async (req, res) => {
             })),
         });
     } catch (error) {
-        console.error("CRIME STATS ERROR:", error);
+        console.error(
+            "CRIME STATS ERROR:",
+            error
+        );
 
         res.status(500).json({
             success: false,
@@ -319,6 +324,9 @@ const getCrimeAnalytics = async (req, res) => {
         const conditions = [];
         const values = [];
 
+        // ------------------------------------------
+        // Year filter
+        // ------------------------------------------
         if (year.trim() !== "") {
             values.push(Number(year));
 
@@ -327,6 +335,9 @@ const getCrimeAnalytics = async (req, res) => {
             `);
         }
 
+        // ------------------------------------------
+        // Crime type filter
+        // ------------------------------------------
         if (crimeType.trim() !== "") {
             values.push(crimeType.trim());
 
@@ -335,6 +346,9 @@ const getCrimeAnalytics = async (req, res) => {
             );
         }
 
+        // ------------------------------------------
+        // District filter
+        // ------------------------------------------
         if (district.trim() !== "") {
             values.push(Number(district));
 
@@ -347,6 +361,10 @@ const getCrimeAnalytics = async (req, res) => {
             conditions.length > 0
                 ? `WHERE ${conditions.join(" AND ")}`
                 : "";
+
+        // ==================================================
+        // CONDITIONS FOR EACH ANALYTICS QUERY
+        // ==================================================
 
         const typeCondition =
             conditions.length > 0
@@ -373,9 +391,11 @@ const getCrimeAnalytics = async (req, res) => {
                 ? `${whereClause} AND location_description IS NOT NULL`
                 : `WHERE location_description IS NOT NULL`;
 
-        // ------------------------------------------
-        // Crime Type Distribution
-        // ------------------------------------------
+
+        // ==================================================
+        // 1. CRIME TYPE DISTRIBUTION
+        // ==================================================
+
         const typeResult = await pool.query(
             `
             SELECT
@@ -385,39 +405,59 @@ const getCrimeAnalytics = async (req, res) => {
             ${typeCondition}
             GROUP BY primary_type
             ORDER BY count DESC
+            LIMIT 10
             `,
             values
         );
 
-        // ------------------------------------------
-        // Crime Trends
-        // ------------------------------------------
+
+        // ==================================================
+        // 2. CRIME TRENDS
+        // ==================================================
+
         let trendQuery;
 
+        // If a year is selected,
+        // show monthly trend for that year.
         if (year.trim() !== "") {
+
             trendQuery = `
                 SELECT
                     TO_CHAR(
                         DATE_TRUNC('month', date),
                         'Mon'
                     ) AS period,
+
                     COUNT(*) AS count
+
                 FROM crimes
+
                 ${dateCondition}
+
                 GROUP BY DATE_TRUNC('month', date)
+
                 ORDER BY DATE_TRUNC('month', date)
             `;
+
         } else {
+
+            // Without year filter,
+            // show yearly trend.
             trendQuery = `
                 SELECT
                     TO_CHAR(
                         DATE_TRUNC('year', date),
                         'YYYY'
                     ) AS period,
+
                     COUNT(*) AS count
+
                 FROM crimes
+
                 ${dateCondition}
+
                 GROUP BY DATE_TRUNC('year', date)
+
                 ORDER BY DATE_TRUNC('year', date)
             `;
         }
@@ -427,9 +467,11 @@ const getCrimeAnalytics = async (req, res) => {
             values
         );
 
-        // ------------------------------------------
-        // District Analysis
-        // ------------------------------------------
+
+        // ==================================================
+        // 3. DISTRICT ANALYSIS
+        // ==================================================
+
         const districtResult = await pool.query(
             `
             SELECT
@@ -443,9 +485,11 @@ const getCrimeAnalytics = async (req, res) => {
             values
         );
 
-        // ------------------------------------------
-        // Arrest Analysis
-        // ------------------------------------------
+
+        // ==================================================
+        // 4. ARREST ANALYSIS
+        // ==================================================
+
         const arrestResult = await pool.query(
             `
             SELECT
@@ -459,9 +503,11 @@ const getCrimeAnalytics = async (req, res) => {
             values
         );
 
-        // ------------------------------------------
-        // Location Analysis
-        // ------------------------------------------
+
+        // ==================================================
+        // 5. LOCATION ANALYSIS
+        // ==================================================
+
         const locationResult = await pool.query(
             `
             SELECT
@@ -476,8 +522,46 @@ const getCrimeAnalytics = async (req, res) => {
             values
         );
 
+
+        // ==================================================
+        // 6. SUMMARY
+        // ==================================================
+
+        const summaryResult = await pool.query(
+            `
+            SELECT
+                COUNT(*) AS total,
+
+                COUNT(*) FILTER (
+                    WHERE arrest = TRUE
+                ) AS arrested,
+
+                COUNT(*) FILTER (
+                    WHERE domestic = TRUE
+                ) AS domestic
+
+            FROM crimes
+
+            ${whereClause}
+            `,
+            values
+        );
+
+        const summary = summaryResult.rows[0];
+
+
+        // ==================================================
+        // SEND RESPONSE
+        // ==================================================
+
         res.json({
             success: true,
+
+            summary: {
+                total: Number(summary.total),
+                arrested: Number(summary.arrested),
+                domestic: Number(summary.domestic),
+            },
 
             typeDistribution:
                 typeResult.rows.map((row) => ({
@@ -503,6 +587,7 @@ const getCrimeAnalytics = async (req, res) => {
                         row.arrest === true
                             ? "Arrested"
                             : "Not Arrested",
+
                     count: Number(row.count),
                 })),
 
@@ -513,7 +598,9 @@ const getCrimeAnalytics = async (req, res) => {
                     count: Number(row.count),
                 })),
         });
+
     } catch (error) {
+
         console.error(
             "CRIME ANALYTICS ERROR:",
             error
@@ -524,4 +611,14 @@ const getCrimeAnalytics = async (req, res) => {
             message: "Failed to fetch crime analytics",
         });
     }
+};
+
+
+// ======================================================
+// EXPORT CONTROLLERS
+// ======================================================
+module.exports = {
+    getCrimeStats,
+    getCrimes,
+    getCrimeAnalytics,
 };

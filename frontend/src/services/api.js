@@ -1,32 +1,20 @@
-const API_BASE_URL = (
-    import.meta.env.VITE_API_URL ||
-    "http://localhost:5000/api"
-).replace(/\/$/, "");
+const API_BASE_URL = "http://localhost:5000/api";
 
-
-// ======================================================
-// Helper function
-// ======================================================
 async function request(endpoint, options = {}) {
-    const response = await fetch(
-        `${API_BASE_URL}${endpoint}`,
-        {
-            ...options,
-            headers: {
-                "Content-Type": "application/json",
-                ...(options.headers || {}),
-            },
-        }
-    );
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        ...options,
+        headers: {
+            "Content-Type": "application/json",
+            ...(options.headers || {}),
+        },
+    });
 
     let data;
 
     try {
         data = await response.json();
     } catch {
-        throw new Error(
-            "Server returned an invalid response."
-        );
+        throw new Error("Server returned an invalid response.");
     }
 
     if (!response.ok) {
@@ -40,19 +28,13 @@ async function request(endpoint, options = {}) {
 }
 
 
-// ======================================================
-// GET CRIME STATISTICS
-// Dashboard
-// ======================================================
+
 export async function getCrimeStats() {
     return request("/crimes/stats");
 }
 
 
-// ======================================================
-// GET CRIME RECORDS
-// Crime Records page
-// ======================================================
+
 export async function getCrimes({
     page = 1,
     limit = 50,
@@ -87,16 +69,12 @@ export async function getCrimes({
         params.set("year", year.trim());
     }
 
-    return request(
-        `/crimes?${params.toString()}`
-    );
+    return request(`/crimes?${params.toString()}`);
 }
 
 
-// ======================================================
-// GET CRIME ANALYTICS
-// Crime Analytics page
-// ======================================================
+
+
 export async function getCrimeAnalytics({
     year = "",
     crimeType = "",
@@ -109,36 +87,23 @@ export async function getCrimeAnalytics({
     }
 
     if (crimeType.trim() !== "") {
-        params.set(
-            "crimeType",
-            crimeType.trim()
-        );
+        params.set("crimeType", crimeType.trim());
     }
 
     if (district.trim() !== "") {
-        params.set(
-            "district",
-            district.trim()
-        );
+        params.set("district", district.trim());
     }
 
     const queryString = params.toString();
 
     return request(
-        `/crimes/analytics${
-            queryString
-                ? `?${queryString}`
-                : ""
-        }`
+        `/crimes/analytics${queryString ? `?${queryString}` : ""}`
     );
 }
 
 
-// ======================================================
-// DASHBOARD COMPATIBILITY FUNCTIONS
-// ======================================================
 
-// Get crime trends
+
 export async function getCrimeTrends(filters = {}) {
     const data = await getCrimeAnalytics(filters);
 
@@ -146,31 +111,29 @@ export async function getCrimeTrends(filters = {}) {
 }
 
 
-// Get crime types
+
+
 export async function getCrimeTypes(filters = {}) {
     const data = await getCrimeAnalytics(filters);
 
     return (
-        data?.typeDistribution?.map(
-            (item) => ({
-                primary_type: item.type,
-                count: item.count,
-            })
-        ) || []
+        data?.typeDistribution?.map((item) => ({
+            primary_type: item.type,
+            count: item.count,
+        })) || []
     );
 }
 
 
-// Get districts
+
+
 export async function getDistricts(filters = {}) {
     const data = await getCrimeAnalytics(filters);
 
     return (
-        data?.districtData?.map(
-            (item) => ({
-                district: item.district,
-                count: item.count,
-            })
-        ) || []
+        data?.districtData?.map((item) => ({
+            district: item.district,
+            count: item.count,
+        })) || []
     );
 }
