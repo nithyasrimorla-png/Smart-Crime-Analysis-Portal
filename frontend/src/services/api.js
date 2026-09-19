@@ -1,4 +1,6 @@
-const API_BASE_URL = "http://localhost:5000/api";
+
+const API_BASE_URL =
+    import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
 
 async function request(endpoint, options = {}) {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -27,13 +29,9 @@ async function request(endpoint, options = {}) {
     return data;
 }
 
-
-
 export async function getCrimeStats() {
     return request("/crimes/stats");
 }
-
-
 
 export async function getCrimes({
     page = 1,
@@ -72,9 +70,6 @@ export async function getCrimes({
     return request(`/crimes?${params.toString()}`);
 }
 
-
-
-
 export async function getCrimeAnalytics({
     year = "",
     crimeType = "",
@@ -101,17 +96,10 @@ export async function getCrimeAnalytics({
     );
 }
 
-
-
-
 export async function getCrimeTrends(filters = {}) {
     const data = await getCrimeAnalytics(filters);
-
     return data?.trendData || [];
 }
-
-
-
 
 export async function getCrimeTypes(filters = {}) {
     const data = await getCrimeAnalytics(filters);
@@ -123,9 +111,6 @@ export async function getCrimeTypes(filters = {}) {
         })) || []
     );
 }
-
-
-
 
 export async function getDistricts(filters = {}) {
     const data = await getCrimeAnalytics(filters);
